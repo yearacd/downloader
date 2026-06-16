@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>视频下载器</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f5f6f8; color: #333; min-height: 100vh;
+  }
+  .container { max-width: 720px; margin: 0 auto; padding: 40px 20px; }
+
+  h1 {
+    font-size: 28px; font-weight: 700; text-align: center; margin-bottom: 8px;
+    background: linear-gradient(135deg, #1da1f2, #536dfe);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .subtitle { text-align: center; color: #999; font-size: 14px; margin-bottom: 32px; }
+
+  .card {
+    background: #fff; border-radius: 12px; padding: 24px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.08); margin-bottom: 16px;
+  }
+
+  .input-group { display: flex; gap: 8px; }
+  .input-group input { flex: 1; }
+  input[type="text"], input[type="password"] {
+    padding: 10px 16px; border: 2px solid #e0e0e0; border-radius: 8px;
+    font-size: 15px; outline: none; transition: border .2s;
+  }
+  input[type="text"]:focus, input[type="password"]:focus { border-color: #536dfe; }
+
+  .btn {
+    padding: 10px 20px; border: none; border-radius: 8px; font-size: 14px;
+    font-weight: 600; cursor: pointer; transition: all .2s; white-space: nowrap;
+  }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-primary { background: #536dfe; color: #fff; }
+  .btn-primary:hover:not(:disabled) { background: #3d56e0; }
+  .btn-success { background: #00c853; color: #fff; }
+  .btn-success:hover:not(:disabled) { background: #00a844; }
+  .btn-outline { background: transparent; color: #666; border: 1px solid #ddd; }
+  .btn-outline:hover:not(:disabled) { border-color: #536dfe; color: #536dfe; }
+
+  /* Video Info */
+  #videoInfo { display: none; }
+  #videoInfo.show { display: block; }
+  .video-meta { display: flex; gap: 16px; }
+  .video-meta img {
+    width: 160px; height: 100px; object-fit: cover; border-radius: 8px; flex-shrink: 0;
+  }
+  .video-meta .details { flex: 1; min-width: 0; }
+  .video-meta h2 { font-size: 17px; line-height: 1.4; margin-bottom: 8px; }
+  .video-meta p { font-size: 13px; color: #888; margin-bottom: 4px; }
+  .video-meta .tag {
+    display: inline-block; background: #f0f0f0; padding: 2px 10px;
+    border-radius: 10px; font-size: 12px; color: #666; margin-top: 4px;
+  }
+  .video-meta .source-tag-bili {
+    display: inline-block; background: #e3f2fd; color: #1565c0;
+    padding: 2px 10px; border-radius: 10px; font-size: 12px; margin-top: 4px;
+  }
+  .video-meta .source-tag-twitter {
+    display: inline-block; background: #e0f2f1; color: #00695c;
+    padding: 2px 10px; border-radius: 10px; font-size: 12px; margin-top: 4px;
+  }
+  .video-meta .source-tag-youtube {
+    display: inline-block; background: #fce4ec; color: #c62828;
+    padding: 2px 10px; border-radius: 10px; font-size: 12px; margin-top: 4px;
+  }
+
+  .dl-row { display: flex; gap: 12px; align-items: center; margin-top: 16px; flex-wrap: wrap; }
+  .dl-row label { font-size: 14px; color: #666; }
+  .dl-row select {
+    padding: 8px 12px; border: 2px solid #e0e0e0; border-radius: 8px;
+    font-size: 14px; outline: none; background: #fff;
+  }
+  .dl-row select:focus { border-color: #536dfe; }
+
+  /* Status */
+  #status { display: none; margin-top: 12px; }
+  #status.show { display: block; }
+  .status-box {
+    padding: 14px 18px; border-radius: 8px; font-size: 14px; line-height: 1.5;
+  }
+  .status-box.running { background: #e8f4fd; color: #005a8c; }
+  .status-box.completed { background: #e8f8e8; color: #1a7a1a; }
+  .status-box.failed { background: #fde8e8; color: #a11a1a; }
+  .status-box code {
+    display: block; margin-top: 8px; padding: 8px; background: rgba(0,0,0,.05);
+    border-radius: 4px; word-break: break-all; font-size: 13px;
+  }
+
+  #formatsOutput {
+    margin-top: 12px; max-height: 300px; overflow: auto;
+    background: #1e1e1e; color: #d4d4d4; padding: 12px 16px;
+    border-radius: 8px; font-family: "Cascadia Code", "Fira Code", monospace;
+    font-size: 12px; line-height: 1.6; white-space: pre; display: none;
+  }
+  #formatsOutput.show { display: block; }
+
+  .spinner {
+    display: inline-block; width: 16px; height: 16px;
+    border: 2px solid #fff; border-top-color: transparent;
+    border-radius: 50%; animation: spin .6s linear infinite;
+    vertical-align: middle; margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error-text { color: #d32f2f; font-size: 14px; margin-top: 8px; }
+
+  .path-row { display: flex; gap: 8px; margin-top: 12px; align-items: center; }
+  .path-row label { font-size: 14px; color: #666; white-space: nowrap; }
+  .path-row input { flex: 1; }
+
+  @media (max-width: 600px) {
+    .input-group { flex-direction: column; }
+    .video-meta { flex-direction: column; }
+    .video-meta img { width: 100%; height: auto; aspect-ratio: 16/10; }
+    .dl-row { flex-direction: column; align-items: stretch; }
+    .path-row { flex-direction: column; align-items: stretch; }
+  }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.5);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000;
+  }
+  .modal-content {
+    background: #fff; border-radius: 12px; padding: 24px;
+    max-width: 420px; width: 90%; max-height: 90vh; overflow-y: auto;
+  }
+
+  /* Platform hint */
+  .platform-hint {
+    display: inline-block; font-size: 12px; color: #999; margin-left: 8px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Video Downloader</h1>
+  <p class="subtitle">支持 Bilibili 和 Twitter/X · 粘贴链接自动识别</p>
+
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-bottom:-8px;">
+    <button class="btn btn-outline" id="btnLogin" style="font-size:13px;display:none;">登录B站</button>
+    <span id="loginStatus" style="font-size:13px;color:#999;align-self:center;display:none;"></span>
+  </div>
+
+  <div class="card">
+    <div class="input-group">
+      <input type="text" id="urlInput" placeholder="粘贴视频链接，如 https://www.bilibili.com/video/BV... 或 https://x.com/...">
+      <button class="btn btn-primary" id="btnInfo">获取信息</button>
+    </div>
+    <div id="errorMsg" class="error-text"></div>
+  </div>
+
+  <!-- 视频信息 -->
+  <div class="card" id="videoInfo">
+    <div class="video-meta">
+      <img id="thumbnail" src="" alt="thumbnail">
+      <div class="details">
+        <h2 id="videoTitle">-</h2>
+        <p>作者: <span id="videoUploader">-</span></p>
+        <p>时长: <span id="videoDuration">-</span></p>
+        <span class="tag" id="videoSourceTag">-</span>
+      </div>
+    </div>
+
+    <div class="dl-row">
+      <label for="quality">画质</label>
+      <select id="quality">
+        <option value="best">最高画质 (推荐)</option>
+        <option value="1080p">1080P</option>
+        <option value="720p">720P</option>
+        <option value="480p">480P</option>
+        <option value="360p">360P</option>
+        <option value="audio">仅音频 MP3</option>
+      </select>
+      <button class="btn btn-success" id="btnDownload">下载</button>
+      <button class="btn btn-outline" id="btnFormats">查看格式</button>
+    </div>
+
+    <div class="path-row">
+      <label for="savePath">保存到</label>
+      <input type="text" id="savePath" placeholder="留空使用默认 downloads/ 目录">
+      <button class="btn btn-outline" id="btnBrowse" type="button" style="padding:8px 14px;font-size:13px;">选择...</button>
+    </div>
+
+    <div id="status">
+      <div class="status-box" id="statusBox">
+        <span id="statusText">任务进行中...</span>
+      </div>
+    </div>
+    <pre id="formatsOutput"></pre>
+  </div>
+
+  <div style="text-align:center;font-size:12px;color:#aaa;margin-top:32px;">
+    基于 Bilibili API + yt-dlp + ffmpeg · 仅用于学习研究
+  </div>
+</div>
+
+  <!-- B站登录弹窗 -->
+  <div class="modal-overlay" id="loginModal" style="display:none;">
+    <div class="modal-content">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h3 style="font-size:18px;">登录 Bilibili</h3>
+        <button class="btn btn-outline" id="btnCloseLogin" style="padding:4px 10px;">✕</button>
+      </div>
+
+      <p style="font-size:14px;color:#666;margin-bottom:12px;">登录后可获取高清画质（1080p+）</p>
+
+      <div style="display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid #e0e0e0;">
+        <button class="login-tab active" data-tab="qrcode" style="flex:1;padding:8px 12px;border:none;background:none;font-size:14px;font-weight:600;color:#00a1d6;cursor:pointer;border-bottom:2px solid #00a1d6;margin-bottom:-2px;transition:all .2s;">扫码登录</button>
+        <button class="login-tab" data-tab="sessdata" style="flex:1;padding:8px 12px;border:none;background:none;font-size:14px;font-weight:600;color:#999;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .2s;">Cookie登录</button>
+        <button class="login-tab" data-tab="password" style="flex:1;padding:8px 12px;border:none;background:none;font-size:14px;font-weight:600;color:#999;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .2s;">密码登录</button>
+      </div>
+
+      <div class="login-panel" id="panelQrcode">
+        <p style="font-size:13px;color:#888;text-align:center;margin-bottom:12px;">打开B站APP扫描二维码</p>
+        <div style="display:flex;justify-content:center;margin-bottom:12px;">
+          <canvas id="qrcodeCanvas" width="200" height="200" style="border:2px solid #e0e0e0;border-radius:8px;"></canvas>
+        </div>
+        <div id="qrcodeStatus" style="font-size:14px;text-align:center;color:#00a1d6;margin-bottom:8px;">生成二维码中...</div>
+        <button class="btn btn-outline" id="btnRefreshQrcode" style="display:none;width:100%;margin-top:8px;">刷新二维码</button>
+      </div>
+
+      <div class="login-panel" id="panelSessdata" style="display:none;">
+        <p style="font-size:12px;color:#888;margin-bottom:12px;line-height:1.6;">
+          在浏览器中登录B站后，打开开发者工具(F12) → Application → Cookies → bilibili.com，复制 <strong>SESSDATA</strong> 的值：
+        </p>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <input type="text" id="inputSessdata" placeholder="SESSDATA（必填）" style="width:100%;padding:10px 14px;border:2px solid #e0e0e0;border-radius:8px;font-size:15px;outline:none;">
+          <input type="text" id="inputBiliJct" placeholder="bili_jct（可选）" style="width:100%;padding:10px 14px;border:2px solid #e0e0e0;border-radius:8px;font-size:15px;outline:none;">
+          <button class="btn btn-success" id="btnSessdataLogin" style="margin-top:4px;">验证并登录</button>
+        </div>
+      </div>
+
+      <div class="login-panel" id="panelPassword" style="display:none;">
+        <p style="font-size:12px;color:#e53935;margin-bottom:8px;line-height:1.5;">
+          注意：B站通常要求验证码。建议优先使用 <strong>扫码登录</strong>。
+        </p>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <input type="text" id="loginUsername" placeholder="用户名 / 手机号 / 邮箱" style="width:100%;padding:10px 14px;border:2px solid #e0e0e0;border-radius:8px;font-size:15px;outline:none;">
+          <input type="password" id="loginPassword" placeholder="密码" style="width:100%;padding:10px 14px;border:2px solid #e0e0e0;border-radius:8px;font-size:15px;outline:none;">
+          <button class="btn btn-success" id="btnLoginSubmit" style="margin-top:4px;">登录</button>
+        </div>
+      </div>
+      <div id="loginResultMsg" style="font-size:14px;color:#d32f2f;text-align:center;margin-top:8px;white-space:pre-line;"></div>
+    </div>
+  </div>
+
+<script>
+// ── 检测视频来源 ──
+function detectSource(url) {
+  const u = url.trim().toLowerCase();
+  if (u.includes('bilibili.com') || u.includes('b23.tv')) return 'bili';
+  if (u.includes('twitter.com') || u.includes('x.com')) return 'twitter';
+  if (u.includes('youtube.com') || u.includes('youtu.be')) return 'youtube';
+  return null;
+}
+
+// ── 基础元素 ──
+const urlInput = document.getElementById('urlInput');
+const btnInfo = document.getElementById('btnInfo');
+const btnDownload = document.getElementById('btnDownload');
+const btnFormats = document.getElementById('btnFormats');
+const videoInfo = document.getElementById('videoInfo');
+const errorMsg = document.getElementById('errorMsg');
+const loginModal = document.getElementById('loginModal');
+const btnLogin = document.getElementById('btnLogin');
+const loginStatus = document.getElementById('loginStatus');
+const loginResultMsg = document.getElementById('loginResultMsg');
+
+let currentUrl = '';
+let currentSource = '';
+
+function showError(msg) { errorMsg.textContent = msg; }
+function clearError() { errorMsg.textContent = ''; }
+
+function formatDuration(sec) {
+  if (!sec) return '-';
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  if (m >= 60) {
+    const h = Math.floor(m / 60);
+    return h + ':' + String(m % 60).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+  }
+  return m + ':' + String(s).padStart(2, '0');
+}
+
+// ── URL 输入检测 ──
+urlInput.addEventListener('input', () => {
+  const url = urlInput.value.trim();
+  const source = detectSource(url);
+  if (source === 'bili') {
+    urlInput.style.borderColor = '#1565c0';
+    btnLogin.style.display = '';
+  } else if (source === 'twitter') {
+    urlInput.style.borderColor = '#00695c';
+    btnLogin.style.display = 'none';
+  } else if (source === 'youtube') {
+    urlInput.style.borderColor = '#c62828';
+    btnLogin.style.display = 'none';
+  } else {
+    urlInput.style.borderColor = '';
+  }
+});
+
+// ── B站登录 ──
+const btnCloseLogin = document.getElementById('btnCloseLogin');
+
+async function checkLogin() {
+  try {
+    const r = await fetch('/api/login/status');
+    const data = await r.json();
+    if (data.logged_in) {
+      loginStatus.textContent = '已登录';
+      loginStatus.style.display = 'inline';
+      loginStatus.style.color = '#1a7a1a';
+      btnLogin.textContent = '退出';
+    } else {
+      loginStatus.textContent = '';
+      loginStatus.style.display = 'none';
+      btnLogin.textContent = '登录B站';
+    }
+  } catch (_) {}
+}
+
+btnLogin.addEventListener('click', async () => {
+  if (btnLogin.textContent === '退出') {
+    await fetch('/api/login/logout');
+    await checkLogin();
+    return;
+  }
+  resetLoginModal();
+  loginModal.style.display = 'flex';
+  generateQrcode();
+});
+
+function resetLoginModal() {
+  loginResultMsg.textContent = '';
+  const tabs = document.querySelectorAll('.login-tab');
+  const panels = document.querySelectorAll('.login-panel');
+  tabs.forEach(t => { t.style.color = '#999'; t.style.borderBottomColor = 'transparent'; });
+  const qrTab = document.querySelector('[data-tab="qrcode"]');
+  if (qrTab) { qrTab.style.color = '#00a1d6'; qrTab.style.borderBottomColor = '#00a1d6'; }
+  panels.forEach(p => p.style.display = 'none');
+  const qp = document.getElementById('panelQrcode');
+  if (qp) qp.style.display = 'block';
+  document.getElementById('loginPassword') && (document.getElementById('loginPassword').value = '');
+  document.getElementById('loginUsername') && (document.getElementById('loginUsername').value = '');
+  document.getElementById('inputSessdata') && (document.getElementById('inputSessdata').value = '');
+}
+
+btnCloseLogin.addEventListener('click', () => {
+  loginModal.style.display = 'none';
+  if (qrPollingTimer) { clearInterval(qrPollingTimer); qrPollingTimer = null; }
+});
+loginModal.addEventListener('click', (e) => {
+  if (e.target === loginModal) {
+    loginModal.style.display = 'none';
+    if (qrPollingTimer) { clearInterval(qrPollingTimer); qrPollingTimer = null; }
+  }
+});
+
+// Tab切换
+document.querySelectorAll('.login-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.login-tab').forEach(t => {
+      t.style.color = '#999'; t.style.borderBottomColor = 'transparent';
+    });
+    tab.style.color = '#00a1d6'; tab.style.borderBottomColor = '#00a1d6';
+    document.querySelectorAll('.login-panel').forEach(p => p.style.display = 'none');
+    const pid = 'panel' + tab.dataset.tab.charAt(0).toUpperCase() + tab.dataset.tab.slice(1);
+    const p = document.getElementById(pid);
+    if (p) p.style.display = 'block';
+    loginResultMsg.textContent = '';
+  });
+});
+
+let qrPollingTimer = null;
+
+function drawQrcode(url) {
+  const canvas = document.getElementById('qrcodeCanvas');
+  const ctx = canvas.getContext('2d');
+  const img = new Image();
+  img.onload = () => {
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, 200, 200);
+    ctx.drawImage(img, 0, 0, 200, 200);
+  };
+  img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(url);
+}
+
+async function generateQrcode() {
+  const statusEl = document.getElementById('qrcodeStatus');
+  const refreshBtn = document.getElementById('btnRefreshQrcode');
+  statusEl.textContent = '生成二维码中...';
+  statusEl.style.color = '#00a1d6';
+  refreshBtn.style.display = 'none';
+  loginResultMsg.textContent = '';
+
+  try {
+    const r = await fetch('/api/login/qrcode/generate');
+    const data = await r.json();
+    if (data.error) {
+      statusEl.textContent = '生成失败: ' + data.error;
+      statusEl.style.color = '#d32f2f';
+      refreshBtn.style.display = 'block';
+      return;
+    }
+    drawQrcode(data.url);
+    statusEl.textContent = '请用B站APP扫码';
+    statusEl.style.color = '#00a1d6';
+    const qrcodeKey = data.qrcode_key;
+    if (qrPollingTimer) clearInterval(qrPollingTimer);
+    qrPollingTimer = setInterval(async () => {
+      try {
+        const pr = await fetch('/api/login/qrcode/poll?qrcode_key=' + encodeURIComponent(qrcodeKey));
+        const pd = await pr.json();
+        if (pd.status === 'success') {
+          clearInterval(qrPollingTimer); qrPollingTimer = null;
+          statusEl.textContent = '登录成功！';
+          statusEl.style.color = '#1a7a1a';
+          refreshBtn.style.display = 'none';
+          await checkLogin();
+          setTimeout(() => { loginModal.style.display = 'none'; }, 800);
+        } else if (pd.status === 'scanned') {
+          statusEl.textContent = '已扫码，请在APP上确认...';
+          statusEl.style.color = '#fb7299';
+        } else if (pd.status === 'expired') {
+          clearInterval(qrPollingTimer); qrPollingTimer = null;
+          statusEl.textContent = '二维码已过期，请刷新';
+          statusEl.style.color = '#d32f2f';
+          refreshBtn.style.display = 'block';
+        } else if (pd.status === 'error') {
+          clearInterval(qrPollingTimer); qrPollingTimer = null;
+          statusEl.textContent = '错误: ' + (pd.message || '');
+          statusEl.style.color = '#d32f2f';
+          refreshBtn.style.display = 'block';
+        }
+      } catch (_) {}
+    }, 1500);
+  } catch (e) {
+    statusEl.textContent = '网络错误: ' + e.message;
+    statusEl.style.color = '#d32f2f';
+    refreshBtn.style.display = 'block';
+  }
+}
+
+document.getElementById('btnRefreshQrcode').addEventListener('click', generateQrcode);
+
+document.getElementById('btnSessdataLogin').addEventListener('click', async () => {
+  const sessdata = document.getElementById('inputSessdata').value.trim();
+  const bili_jct = document.getElementById('inputBiliJct').value.trim();
+  if (!sessdata) { loginResultMsg.textContent = '请填写 SESSDATA'; return; }
+  const btn = document.getElementById('btnSessdataLogin');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>验证中...';
+  loginResultMsg.textContent = '';
+  try {
+    const r = await fetch('/api/login/sessdata', { method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessdata, bili_jct }) });
+    const data = await r.json();
+    if (data.error) { loginResultMsg.textContent = data.error; return; }
+    loginResultMsg.style.color = '#1a7a1a';
+    loginResultMsg.textContent = '登录成功';
+    await checkLogin();
+    setTimeout(() => { loginModal.style.display = 'none'; }, 800);
+  } catch (e) { loginResultMsg.textContent = '网络错误: ' + e.message; }
+  finally { btn.disabled = false; btn.innerHTML = '验证并登录'; }
+});
+
+document.getElementById('btnLoginSubmit').addEventListener('click', async () => {
+  const username = document.getElementById('loginUsername').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  if (!username || !password) { loginResultMsg.textContent = '请输入用户名和密码'; return; }
+  const btn = document.getElementById('btnLoginSubmit');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>登录中...';
+  loginResultMsg.textContent = '';
+  try {
+    const r = await fetch('/api/login/password', { method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }) });
+    const data = await r.json();
+    if (data.error) { loginResultMsg.textContent = data.error; return; }
+    loginResultMsg.style.color = '#1a7a1a';
+    loginResultMsg.textContent = '登录成功';
+    await checkLogin();
+    setTimeout(() => { loginModal.style.display = 'none'; }, 800);
+  } catch (e) { loginResultMsg.textContent = '网络错误: ' + e.message; }
+  finally { btn.disabled = false; btn.innerHTML = '登录'; }
+});
+
+document.getElementById('loginPassword').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('btnLoginSubmit').click();
+});
+
+checkLogin();
+
+// ── 获取视频信息 ──
+btnInfo.addEventListener('click', async () => {
+  const url = urlInput.value.trim();
+  if (!url) { showError('请输入视频链接'); return; }
+  const source = detectSource(url);
+  if (!source) { showError('不支持的链接，目前支持 Bilibili、Twitter/X、YouTube'); return; }
+  clearError();
+
+  btnInfo.disabled = true;
+  btnInfo.innerHTML = '<span class="spinner"></span>查询中...';
+
+  try {
+    const resp = await fetch('/api/info', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    const data = await resp.json();
+    if (data.error) { showError(data.error); return; }
+
+    currentUrl = url;
+    currentSource = source;
+
+    document.getElementById('thumbnail').src = data.thumbnail || '';
+    document.getElementById('videoTitle').textContent = data.title || '-';
+    document.getElementById('videoUploader').textContent = data.uploader || '-';
+    document.getElementById('videoDuration').textContent = formatDuration(data.duration);
+
+    const tag = document.getElementById('videoSourceTag');
+    if (source === 'bili') {
+      tag.textContent = 'Bilibili';
+      tag.className = 'source-tag-bili';
+      btnLogin.style.display = '';
+      document.querySelector('.dl-row label').textContent = '画质';
+      document.getElementById('quality').style.display = '';
+    } else {
+      tag.textContent = 'Twitter / X';
+      tag.className = 'source-tag-twitter';
+      btnLogin.style.display = 'none';
+      document.querySelector('.dl-row label').textContent = '下载选项';
+      document.getElementById('quality').style.display = 'none';
+    } else if (source === 'youtube') {
+      tag.textContent = 'YouTube';
+      tag.className = 'source-tag-youtube';
+      btnLogin.style.display = 'none';
+      document.querySelector('.dl-row label').textContent = '下载选项';
+      document.getElementById('quality').style.display = '';
+    }
+
+    videoInfo.classList.add('show');
+    document.getElementById('status').classList.remove('show');
+    document.getElementById('formatsOutput').classList.remove('show');
+  } catch (e) {
+    showError('网络错误: ' + e.message);
+  } finally {
+    btnInfo.disabled = false;
+    btnInfo.textContent = '获取信息';
+  }
+});
+
+// ── 下载 ──
+const savePathInput = document.getElementById('savePath');
+const btnBrowse = document.getElementById('btnBrowse');
+
+btnBrowse.addEventListener('click', () => {
+  const path = prompt('请输入下载保存目录的完整路径：\n（留空则使用默认 downloads/ 目录）', savePathInput.value || '');
+  if (path !== null) savePathInput.value = path;
+});
+
+btnDownload.addEventListener('click', async () => {
+  if (!currentUrl) { showError('请先获取视频信息'); return; }
+  clearError();
+  const quality = document.getElementById('quality').value;
+  const outputDir = savePathInput.value.trim();
+
+  btnDownload.disabled = true;
+  btnDownload.innerHTML = '<span class="spinner"></span>下载中...';
+
+  const statusDiv = document.getElementById('status');
+  const statusBox = document.getElementById('statusBox');
+  const statusText = document.getElementById('statusText');
+  statusDiv.classList.add('show');
+  statusBox.className = 'status-box running';
+  statusText.textContent = '⏳ 正在下载，请稍候...';
+
+  try {
+    const resp = await fetch('/api/download', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: currentUrl, quality, output_dir: outputDir }),
+    });
+    const { task_id, error } = await resp.json();
+    if (error) { throw new Error(error); }
+
+    const poll = setInterval(async () => {
+      const r = await fetch(`/api/task/${task_id}`);
+      const task = await r.json();
+      if (task.message) statusText.textContent = '⏳ ' + task.message;
+      if (task.status === 'completed') {
+        clearInterval(poll);
+        statusBox.className = 'status-box completed';
+        statusText.innerHTML = '✅ 下载完成！<br><code>' + (task.result || '') + '</code>';
+        btnDownload.disabled = false;
+        btnDownload.textContent = '下载';
+      } else if (task.status === 'failed') {
+        clearInterval(poll);
+        statusBox.className = 'status-box failed';
+        statusText.innerHTML = '❌ 下载失败<br><code>' + (task.error || '未知错误') + '</code>';
+        btnDownload.disabled = false;
+        btnDownload.textContent = '下载';
+      }
+    }, 1000);
+  } catch (e) {
+    statusBox.className = 'status-box failed';
+    statusText.textContent = '❌ ' + e.message;
+    btnDownload.disabled = false;
+    btnDownload.textContent = '下载';
+  }
+});
+
+// ── 查看格式 ──
+btnFormats.addEventListener('click', async () => {
+  if (!currentUrl) { showError('请先获取视频信息'); return; }
+  clearError();
+  const formatsOut = document.getElementById('formatsOutput');
+  formatsOut.classList.add('show');
+  formatsOut.textContent = '加载中...';
+  try {
+    const resp = await fetch('/api/formats', { method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: currentUrl }) });
+    const data = await resp.json();
+    formatsOut.textContent = data.formats || data.error || '无数据';
+  } catch (e) {
+    formatsOut.textContent = '错误: ' + e.message;
+  }
+});
+
+// 回车触发查询
+urlInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') btnInfo.click();
+});
+</script>
+</body>
+</html>
