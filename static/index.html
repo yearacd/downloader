@@ -10,7 +10,66 @@
     font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
     background: #f5f6f8; color: #333; min-height: 100vh;
   }
-  .container { max-width: 720px; margin: 0 auto; padding: 40px 20px; }
+  .container { max-width: 720px; margin: 0 auto; padding: 40px 20px; position: relative; }
+
+  /* 顶部登录区域 */
+  .top-login-bar {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-end;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 12px 16px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    backdrop-filter: blur(10px);
+  }
+  
+  .login-status-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+  }
+  
+  .login-status-label {
+    font-size: 12px;
+    color: #666;
+    font-weight: 500;
+  }
+  
+  .status-badge {
+    padding: 3px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 500;
+  }
+  
+  .status-badge.logged-in {
+    background: #e8f8e8;
+    color: #1a7a1a;
+  }
+  
+  .status-badge.not-logged {
+    background: #fde8e8;
+    color: #d32f2f;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  
+  .status-badge.not-logged:hover {
+    background: #f5c6cb;
+    color: #a71d2a;
+  }
+  
+  .top-login-bar .btn {
+    padding: 4px 10px;
+    font-size: 11px;
+  }
 
   h1 {
     font-size: 28px; font-weight: 700; text-align: center; margin-bottom: 8px;
@@ -43,8 +102,9 @@
   .btn-success:hover:not(:disabled) { background: #00a844; }
   .btn-outline { background: transparent; color: #666; border: 1px solid #ddd; }
   .btn-outline:hover:not(:disabled) { border-color: #536dfe; color: #536dfe; }
+  .btn-youtube { background: #c62828; color: #fff; }
+  .btn-youtube:hover:not(:disabled) { background: #b71c1c; }
 
-  /* Video Info */
   #videoInfo { display: none; }
   #videoInfo.show { display: block; }
   .video-meta { display: flex; gap: 16px; }
@@ -79,7 +139,6 @@
   }
   .dl-row select:focus { border-color: #536dfe; }
 
-  /* Status */
   #status { display: none; margin-top: 12px; }
   #status.show { display: block; }
   .status-box {
@@ -107,6 +166,9 @@
     border-radius: 50%; animation: spin .6s linear infinite;
     vertical-align: middle; margin-right: 6px;
   }
+  .spinner-dark {
+    border-color: #666; border-top-color: transparent;
+  }
   @keyframes spin { to { transform: rotate(360deg); } }
 
   .error-text { color: #d32f2f; font-size: 14px; margin-top: 8px; }
@@ -123,7 +185,6 @@
     .path-row { flex-direction: column; align-items: stretch; }
   }
 
-  /* Modal */
   .modal-overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,.5);
     display: flex; align-items: center; justify-content: center;
@@ -134,31 +195,49 @@
     max-width: 420px; width: 90%; max-height: 90vh; overflow-y: auto;
   }
 
-  /* Platform hint */
-  .platform-hint {
-    display: inline-block; font-size: 12px; color: #999; margin-left: 8px;
+  .browser-grid {
+    display: flex; flex-direction: column; gap: 8px; margin-top: 12px;
+  }
+  .browser-btn {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px; border: 2px solid #e0e0e0; border-radius: 8px;
+    background: #fff; cursor: pointer; font-size: 15px;
+    transition: all .2s; width: 100%;
+  }
+  .browser-btn:hover { border-color: #c62828; background: #fef2f2; }
+  .browser-btn:disabled { opacity: .5; cursor: not-allowed; }
+  .browser-btn .icon {
+    font-size: 24px; width: 32px; text-align: center;
   }
 </style>
 </head>
 <body>
+<!-- 顶部登录栏（固定在右上角） -->
+<div class="top-login-bar">
+  <div class="login-status-item">
+    <span class="login-status-label">B站:</span>
+    <span id="loginStatus" style="display:none;"></span>
+    <button class="btn btn-outline" id="btnLogin" style="display:none;">登录</button>
+  </div>
+  <div class="login-status-item">
+    <span class="login-status-label">YouTube:</span>
+    <span id="ytLoginStatus" style="display:none;"></span>
+    <button class="btn btn-outline" id="btnYtLogin" style="display:none;">登录</button>
+  </div>
+</div>
+
 <div class="container">
   <h1>Video Downloader</h1>
-  <p class="subtitle">支持 Bilibili 和 Twitter/X · 粘贴链接自动识别</p>
-
-  <div style="display:flex;gap:8px;justify-content:flex-end;margin-bottom:-8px;">
-    <button class="btn btn-outline" id="btnLogin" style="font-size:13px;display:none;">登录B站</button>
-    <span id="loginStatus" style="font-size:13px;color:#999;align-self:center;display:none;"></span>
-  </div>
+  <p class="subtitle">支持 Bilibili、Twitter/X、YouTube · 粘贴链接自动识别</p>
 
   <div class="card">
     <div class="input-group">
-      <input type="text" id="urlInput" placeholder="粘贴视频链接，如 https://www.bilibili.com/video/BV... 或 https://x.com/...">
+      <input type="text" id="urlInput" placeholder="粘贴视频链接，如 https://www.bilibili.com/video/BV... 或 https://x.com/... 或 https://youtube.com/...">
       <button class="btn btn-primary" id="btnInfo">获取信息</button>
     </div>
     <div id="errorMsg" class="error-text"></div>
   </div>
 
-  <!-- 视频信息 -->
   <div class="card" id="videoInfo">
     <div class="video-meta">
       <img id="thumbnail" src="" alt="thumbnail">
@@ -203,55 +282,101 @@
   </div>
 </div>
 
-  <!-- B站登录弹窗 -->
-  <div class="modal-overlay" id="loginModal" style="display:none;">
-    <div class="modal-content">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-        <h3 style="font-size:18px;">登录 Bilibili</h3>
-        <button class="btn btn-outline" id="btnCloseLogin" style="padding:4px 10px;">✕</button>
-      </div>
-
-      <p style="font-size:14px;color:#666;margin-bottom:12px;">登录后可获取高清画质（1080p+）</p>
-
-      <div style="display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid #e0e0e0;">
-        <button class="login-tab active" data-tab="qrcode" style="flex:1;padding:8px 12px;border:none;background:none;font-size:14px;font-weight:600;color:#00a1d6;cursor:pointer;border-bottom:2px solid #00a1d6;margin-bottom:-2px;transition:all .2s;">扫码登录</button>
-        <button class="login-tab" data-tab="sessdata" style="flex:1;padding:8px 12px;border:none;background:none;font-size:14px;font-weight:600;color:#999;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .2s;">Cookie登录</button>
-        <button class="login-tab" data-tab="password" style="flex:1;padding:8px 12px;border:none;background:none;font-size:14px;font-weight:600;color:#999;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .2s;">密码登录</button>
-      </div>
-
-      <div class="login-panel" id="panelQrcode">
-        <p style="font-size:13px;color:#888;text-align:center;margin-bottom:12px;">打开B站APP扫描二维码</p>
-        <div style="display:flex;justify-content:center;margin-bottom:12px;">
-          <canvas id="qrcodeCanvas" width="200" height="200" style="border:2px solid #e0e0e0;border-radius:8px;"></canvas>
-        </div>
-        <div id="qrcodeStatus" style="font-size:14px;text-align:center;color:#00a1d6;margin-bottom:8px;">生成二维码中...</div>
-        <button class="btn btn-outline" id="btnRefreshQrcode" style="display:none;width:100%;margin-top:8px;">刷新二维码</button>
-      </div>
-
-      <div class="login-panel" id="panelSessdata" style="display:none;">
-        <p style="font-size:12px;color:#888;margin-bottom:12px;line-height:1.6;">
-          在浏览器中登录B站后，打开开发者工具(F12) → Application → Cookies → bilibili.com，复制 <strong>SESSDATA</strong> 的值：
-        </p>
-        <div style="display:flex;flex-direction:column;gap:10px;">
-          <input type="text" id="inputSessdata" placeholder="SESSDATA（必填）" style="width:100%;padding:10px 14px;border:2px solid #e0e0e0;border-radius:8px;font-size:15px;outline:none;">
-          <input type="text" id="inputBiliJct" placeholder="bili_jct（可选）" style="width:100%;padding:10px 14px;border:2px solid #e0e0e0;border-radius:8px;font-size:15px;outline:none;">
-          <button class="btn btn-success" id="btnSessdataLogin" style="margin-top:4px;">验证并登录</button>
-        </div>
-      </div>
-
-      <div class="login-panel" id="panelPassword" style="display:none;">
-        <p style="font-size:12px;color:#e53935;margin-bottom:8px;line-height:1.5;">
-          注意：B站通常要求验证码。建议优先使用 <strong>扫码登录</strong>。
-        </p>
-        <div style="display:flex;flex-direction:column;gap:10px;">
-          <input type="text" id="loginUsername" placeholder="用户名 / 手机号 / 邮箱" style="width:100%;padding:10px 14px;border:2px solid #e0e0e0;border-radius:8px;font-size:15px;outline:none;">
-          <input type="password" id="loginPassword" placeholder="密码" style="width:100%;padding:10px 14px;border:2px solid #e0e0e0;border-radius:8px;font-size:15px;outline:none;">
-          <button class="btn btn-success" id="btnLoginSubmit" style="margin-top:4px;">登录</button>
-        </div>
-      </div>
-      <div id="loginResultMsg" style="font-size:14px;color:#d32f2f;text-align:center;margin-top:8px;white-space:pre-line;"></div>
+<!-- YouTube 登录弹窗 -->
+<div class="modal-overlay" id="ytLoginModal" style="display:none;">
+  <div class="modal-content" style="max-width:500px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 style="font-size:18px;">登录 YouTube</h3>
+      <button class="btn btn-outline" id="btnCloseYtLogin" style="padding:4px 10px;">✕</button>
     </div>
+
+    <div id="ytLoginStep1">
+      <p style="font-size:14px;color:#666;margin-bottom:16px;line-height:1.6;">
+        点击下方按钮将在弹出窗口中打开 YouTube 登录页面。<br>
+        登录后 <strong>等待 5 秒</strong> 系统将自动提取 cookie。
+      </p>
+      <button class="btn btn-primary" id="btnOpenYtLoginWin" style="width:100%;padding:14px;font-size:16px;">
+        弹出窗口登录 YouTube
+      </button>
+      <p style="font-size:12px;color:#aaa;margin-top:10px;text-align:center;">
+        请允许浏览器弹出窗口
+      </p>
+    </div>
+
+    <div id="ytLoginStep1b" style="display:none;">
+      <p style="font-size:14px;color:#333;text-align:center;line-height:1.6;margin-bottom:12px;">
+        已在弹出窗口中打开 YouTube 登录页面<br>
+        <span style="font-size:12px;color:#888;">请完成登录，然后点击下方按钮</span>
+      </p>
+      <button class="btn btn-success" id="btnAutoExtract" style="width:100%;padding:12px;font-size:15px;">
+        已登录，立即提取 cookie
+      </button>
+      <button class="btn btn-outline" id="btnReopenYtLogin" style="width:100%;padding:8px;font-size:13px;margin-top:8px;">
+        重新打开登录窗口
+      </button>
+    </div>
+
+    <div id="ytLoginStep2" style="display:none;">
+      <p style="font-size:14px;color:#666;text-align:center;line-height:1.6;">
+        正在扫描浏览器提取 cookie...<br>
+        <span style="font-size:12px;color:#888;">请稍候</span>
+      </p>
+      <div style="text-align:center;margin:20px 0;">
+        <div class="spinner spinner-dark" style="width:32px;height:32px;border-width:3px;"></div>
+      </div>
+    </div>
+
+    <div id="ytLoginSuccess" style="display:none;">
+      <p style="font-size:16px;color:#1a7a1a;text-align:center;line-height:1.6;">
+        ✓ YouTube 登录成功！<br>
+        <span style="font-size:12px;color:#888;">现在可以下载 YouTube 视频了</span>
+      </p>
+    </div>
+
+    <div id="ytLoginResultMsg" style="font-size:14px;color:#d32f2f;text-align:center;margin-top:8px;white-space:pre-line;"></div>
   </div>
+</div>
+
+<!-- B站登录弹窗 -->
+<div class="modal-overlay" id="loginModal" style="display:none;">
+  <div class="modal-content">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 style="font-size:18px;">登录 Bilibili</h3>
+      <button class="btn btn-outline" id="btnCloseLogin" style="padding:4px 10px;">✕</button>
+    </div>
+    <p style="font-size:14px;color:#666;margin-bottom:12px;">登录后可获取高清画质（1080p+）</p>
+    <div style="display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid #e0e0e0;">
+      <button class="login-tab active" data-tab="qrcode" style="flex:1;padding:8px 12px;border:none;background:none;font-size:14px;font-weight:600;color:#00a1d6;cursor:pointer;border-bottom:2px solid #00a1d6;margin-bottom:-2px;">扫码登录</button>
+      <button class="login-tab" data-tab="sessdata" style="flex:1;padding:8px 12px;border:none;background:none;font-size:14px;font-weight:600;color:#999;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;">Cookie登录</button>
+      <button class="login-tab" data-tab="password" style="flex:1;padding:8px 12px;border:none;background:none;font-size:14px;font-weight:600;color:#999;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;">密码登录</button>
+    </div>
+    <div class="login-panel" id="panelQrcode">
+      <p style="font-size:13px;color:#888;text-align:center;margin-bottom:12px;">打开B站APP扫描二维码</p>
+      <div style="display:flex;justify-content:center;margin-bottom:12px;">
+        <canvas id="qrcodeCanvas" width="200" height="200" style="border:2px solid #e0e0e0;border-radius:8px;"></canvas>
+      </div>
+      <div id="qrcodeStatus" style="font-size:14px;text-align:center;color:#00a1d6;margin-bottom:8px;">生成二维码中...</div>
+      <button class="btn btn-outline" id="btnRefreshQrcode" style="display:none;width:100%;margin-top:8px;">刷新二维码</button>
+    </div>
+    <div class="login-panel" id="panelSessdata" style="display:none;">
+      <p style="font-size:12px;color:#888;margin-bottom:12px;line-height:1.6;">在浏览器中登录B站后，F12 → Application → Cookies → bilibili.com，复制 <strong>SESSDATA</strong>：</p>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <input type="text" id="inputSessdata" placeholder="SESSDATA（必填）" style="width:100%;padding:10px 14px;border:2px solid #e0e0e0;border-radius:8px;font-size:15px;outline:none;">
+        <input type="text" id="inputBiliJct" placeholder="bili_jct（可选）" style="width:100%;padding:10px 14px;border:2px solid #e0e0e0;border-radius:8px;font-size:15px;outline:none;">
+        <button class="btn btn-success" id="btnSessdataLogin" style="margin-top:4px;">验证并登录</button>
+      </div>
+    </div>
+    <div class="login-panel" id="panelPassword" style="display:none;">
+      <p style="font-size:12px;color:#e53935;margin-bottom:8px;line-height:1.5;">注意：B站通常要求验证码。建议优先使用 <strong>扫码登录</strong>。</p>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <input type="text" id="loginUsername" placeholder="用户名 / 手机号 / 邮箱" style="width:100%;padding:10px 14px;border:2px solid #e0e0e0;border-radius:8px;font-size:15px;outline:none;">
+        <input type="password" id="loginPassword" placeholder="密码" style="width:100%;padding:10px 14px;border:2px solid #e0e0e0;border-radius:8px;font-size:15px;outline:none;">
+        <button class="btn btn-success" id="btnLoginSubmit" style="margin-top:4px;">登录</button>
+      </div>
+    </div>
+    <div id="loginResultMsg" style="font-size:14px;color:#d32f2f;text-align:center;margin-top:8px;white-space:pre-line;"></div>
+  </div>
+</div>
 
 <script>
 // ── 检测视频来源 ──
@@ -274,6 +399,10 @@ const loginModal = document.getElementById('loginModal');
 const btnLogin = document.getElementById('btnLogin');
 const loginStatus = document.getElementById('loginStatus');
 const loginResultMsg = document.getElementById('loginResultMsg');
+const ytLoginModal = document.getElementById('ytLoginModal');
+const btnYtLogin = document.getElementById('btnYtLogin');
+const ytLoginStatus = document.getElementById('ytLoginStatus');
+const ytLoginResultMsg = document.getElementById('ytLoginResultMsg');
 
 let currentUrl = '';
 let currentSource = '';
@@ -296,17 +425,15 @@ function formatDuration(sec) {
 urlInput.addEventListener('input', () => {
   const url = urlInput.value.trim();
   const source = detectSource(url);
+  btnLogin.style.display = 'none';
+  btnYtLogin.style.display = 'none';
+  urlInput.style.borderColor = '';
   if (source === 'bili') {
     urlInput.style.borderColor = '#1565c0';
     btnLogin.style.display = '';
-  } else if (source === 'twitter') {
-    urlInput.style.borderColor = '#00695c';
-    btnLogin.style.display = 'none';
   } else if (source === 'youtube') {
     urlInput.style.borderColor = '#c62828';
-    btnLogin.style.display = 'none';
-  } else {
-    urlInput.style.borderColor = '';
+    btnYtLogin.style.display = '';
   }
 });
 
@@ -318,14 +445,21 @@ async function checkLogin() {
     const r = await fetch('/api/login/status');
     const data = await r.json();
     if (data.logged_in) {
-      loginStatus.textContent = '已登录';
+      loginStatus.innerHTML = '<span class="status-badge logged-in">已登录</span>';
       loginStatus.style.display = 'inline';
-      loginStatus.style.color = '#1a7a1a';
       btnLogin.textContent = '退出';
+      // 移除点击事件
+      loginStatus.onclick = null;
     } else {
-      loginStatus.textContent = '';
-      loginStatus.style.display = 'none';
-      btnLogin.textContent = '登录B站';
+      loginStatus.innerHTML = '<span class="status-badge not-logged">未登录</span>';
+      loginStatus.style.display = 'inline';
+      btnLogin.textContent = '登录';
+      // 添加点击事件，点击未登录徽章打开登录弹窗
+      loginStatus.onclick = () => {
+        resetLoginModal();
+        loginModal.style.display = 'flex';
+        generateQrcode();
+      };
     }
   } catch (_) {}
 }
@@ -351,9 +485,9 @@ function resetLoginModal() {
   panels.forEach(p => p.style.display = 'none');
   const qp = document.getElementById('panelQrcode');
   if (qp) qp.style.display = 'block';
-  document.getElementById('loginPassword') && (document.getElementById('loginPassword').value = '');
-  document.getElementById('loginUsername') && (document.getElementById('loginUsername').value = '');
-  document.getElementById('inputSessdata') && (document.getElementById('inputSessdata').value = '');
+  const pw = document.getElementById('loginPassword'); if (pw) pw.value = '';
+  const un = document.getElementById('loginUsername'); if (un) un.value = '';
+  const sd = document.getElementById('inputSessdata'); if (sd) sd.value = '';
 }
 
 btnCloseLogin.addEventListener('click', () => {
@@ -367,7 +501,6 @@ loginModal.addEventListener('click', (e) => {
   }
 });
 
-// Tab切换
 document.querySelectorAll('.login-tab').forEach(tab => {
   tab.addEventListener('click', () => {
     document.querySelectorAll('.login-tab').forEach(t => {
@@ -403,16 +536,10 @@ async function generateQrcode() {
   statusEl.style.color = '#00a1d6';
   refreshBtn.style.display = 'none';
   loginResultMsg.textContent = '';
-
   try {
     const r = await fetch('/api/login/qrcode/generate');
     const data = await r.json();
-    if (data.error) {
-      statusEl.textContent = '生成失败: ' + data.error;
-      statusEl.style.color = '#d32f2f';
-      refreshBtn.style.display = 'block';
-      return;
-    }
+    if (data.error) { statusEl.textContent = '生成失败: ' + data.error; statusEl.style.color = '#d32f2f'; refreshBtn.style.display = 'block'; return; }
     drawQrcode(data.url);
     statusEl.textContent = '请用B站APP扫码';
     statusEl.style.color = '#00a1d6';
@@ -422,34 +549,13 @@ async function generateQrcode() {
       try {
         const pr = await fetch('/api/login/qrcode/poll?qrcode_key=' + encodeURIComponent(qrcodeKey));
         const pd = await pr.json();
-        if (pd.status === 'success') {
-          clearInterval(qrPollingTimer); qrPollingTimer = null;
-          statusEl.textContent = '登录成功！';
-          statusEl.style.color = '#1a7a1a';
-          refreshBtn.style.display = 'none';
-          await checkLogin();
-          setTimeout(() => { loginModal.style.display = 'none'; }, 800);
-        } else if (pd.status === 'scanned') {
-          statusEl.textContent = '已扫码，请在APP上确认...';
-          statusEl.style.color = '#fb7299';
-        } else if (pd.status === 'expired') {
-          clearInterval(qrPollingTimer); qrPollingTimer = null;
-          statusEl.textContent = '二维码已过期，请刷新';
-          statusEl.style.color = '#d32f2f';
-          refreshBtn.style.display = 'block';
-        } else if (pd.status === 'error') {
-          clearInterval(qrPollingTimer); qrPollingTimer = null;
-          statusEl.textContent = '错误: ' + (pd.message || '');
-          statusEl.style.color = '#d32f2f';
-          refreshBtn.style.display = 'block';
-        }
+        if (pd.status === 'success') { clearInterval(qrPollingTimer); qrPollingTimer = null; statusEl.textContent = '登录成功！'; statusEl.style.color = '#1a7a1a'; refreshBtn.style.display = 'none'; await checkLogin(); setTimeout(() => { loginModal.style.display = 'none'; }, 800); }
+        else if (pd.status === 'scanned') { statusEl.textContent = '已扫码，请在APP上确认...'; statusEl.style.color = '#fb7299'; }
+        else if (pd.status === 'expired') { clearInterval(qrPollingTimer); qrPollingTimer = null; statusEl.textContent = '二维码已过期，请刷新'; statusEl.style.color = '#d32f2f'; refreshBtn.style.display = 'block'; }
+        else if (pd.status === 'error') { clearInterval(qrPollingTimer); qrPollingTimer = null; statusEl.textContent = '错误: ' + (pd.message || ''); statusEl.style.color = '#d32f2f'; refreshBtn.style.display = 'block'; }
       } catch (_) {}
     }, 1500);
-  } catch (e) {
-    statusEl.textContent = '网络错误: ' + e.message;
-    statusEl.style.color = '#d32f2f';
-    refreshBtn.style.display = 'block';
-  }
+  } catch (e) { statusEl.textContent = '网络错误: ' + e.message; statusEl.style.color = '#d32f2f'; refreshBtn.style.display = 'block'; }
 }
 
 document.getElementById('btnRefreshQrcode').addEventListener('click', generateQrcode);
@@ -462,15 +568,11 @@ document.getElementById('btnSessdataLogin').addEventListener('click', async () =
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>验证中...';
   loginResultMsg.textContent = '';
   try {
-    const r = await fetch('/api/login/sessdata', { method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessdata, bili_jct }) });
+    const r = await fetch('/api/login/sessdata', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessdata, bili_jct }) });
     const data = await r.json();
     if (data.error) { loginResultMsg.textContent = data.error; return; }
-    loginResultMsg.style.color = '#1a7a1a';
-    loginResultMsg.textContent = '登录成功';
-    await checkLogin();
-    setTimeout(() => { loginModal.style.display = 'none'; }, 800);
+    loginResultMsg.style.color = '#1a7a1a'; loginResultMsg.textContent = '登录成功';
+    await checkLogin(); setTimeout(() => { loginModal.style.display = 'none'; }, 800);
   } catch (e) { loginResultMsg.textContent = '网络错误: ' + e.message; }
   finally { btn.disabled = false; btn.innerHTML = '验证并登录'; }
 });
@@ -483,15 +585,11 @@ document.getElementById('btnLoginSubmit').addEventListener('click', async () => 
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>登录中...';
   loginResultMsg.textContent = '';
   try {
-    const r = await fetch('/api/login/password', { method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }) });
+    const r = await fetch('/api/login/password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
     const data = await r.json();
     if (data.error) { loginResultMsg.textContent = data.error; return; }
-    loginResultMsg.style.color = '#1a7a1a';
-    loginResultMsg.textContent = '登录成功';
-    await checkLogin();
-    setTimeout(() => { loginModal.style.display = 'none'; }, 800);
+    loginResultMsg.style.color = '#1a7a1a'; loginResultMsg.textContent = '登录成功';
+    await checkLogin(); setTimeout(() => { loginModal.style.display = 'none'; }, 800);
   } catch (e) { loginResultMsg.textContent = '网络错误: ' + e.message; }
   finally { btn.disabled = false; btn.innerHTML = '登录'; }
 });
@@ -501,6 +599,117 @@ document.getElementById('loginPassword').addEventListener('keydown', (e) => {
 });
 
 checkLogin();
+
+// ── YouTube 登录 ──
+const btnCloseYtLogin = document.getElementById('btnCloseYtLogin');
+let ytPopupWindow = null;
+let ytPopupCheckTimer = null;
+
+async function checkYtLogin() {
+  try {
+    const r = await fetch('/api/yt/login/status');
+    const data = await r.json();
+    if (data.logged_in) {
+      ytLoginStatus.innerHTML = '<span class="status-badge logged-in">已登录</span>';
+      ytLoginStatus.style.display = 'inline';
+      btnYtLogin.textContent = '退出';
+      // 移除点击事件
+      ytLoginStatus.onclick = null;
+    } else {
+      ytLoginStatus.innerHTML = '<span class="status-badge not-logged">未登录</span>';
+      ytLoginStatus.style.display = 'inline';
+      btnYtLogin.textContent = '登录';
+      // 添加点击事件，点击未登录徽章打开YouTube登录弹窗
+      ytLoginStatus.onclick = () => {
+        document.getElementById('ytLoginStep1').style.display = 'block';
+        document.getElementById('ytLoginStep1b').style.display = 'none';
+        document.getElementById('ytLoginStep2').style.display = 'none';
+        document.getElementById('ytLoginSuccess').style.display = 'none';
+        ytLoginResultMsg.textContent = '';
+        ytLoginResultMsg.style.color = '#d32f2f';
+        ytLoginModal.style.display = 'flex';
+      };
+    }
+  } catch (_) {}
+}
+
+btnYtLogin.addEventListener('click', () => {
+  if (btnYtLogin.textContent === '退出') {
+    fetch('/api/yt/login/logout').then(() => checkYtLogin());
+    return;
+  }
+  // 重置弹窗
+  document.getElementById('ytLoginStep1').style.display = 'block';
+  document.getElementById('ytLoginStep1b').style.display = 'none';
+  document.getElementById('ytLoginStep2').style.display = 'none';
+  document.getElementById('ytLoginSuccess').style.display = 'none';
+  ytLoginResultMsg.textContent = '';
+  ytLoginResultMsg.style.color = '#d32f2f';
+  ytLoginModal.style.display = 'flex';
+});
+
+// 弹出窗口登录 YouTube
+document.getElementById('btnOpenYtLoginWin').addEventListener('click', () => {
+  // 打开弹出窗口
+  const popupUrl = 'https://accounts.google.com/ServiceLogin?service=youtube&hl=zh-CN&continue=https://www.youtube.com/';
+  ytPopupWindow = window.open(popupUrl, 'ytLoginPopup', 'width=480,height=700,scrollbars=yes,resizable=yes');
+
+  // 切换到步骤1b：等待用户完成登录
+  document.getElementById('ytLoginStep1').style.display = 'none';
+  document.getElementById('ytLoginStep1b').style.display = 'block';
+  ytLoginResultMsg.textContent = '';
+});
+
+// 重新打开登录窗口
+document.getElementById('btnReopenYtLogin').addEventListener('click', () => {
+  if (ytPopupWindow && !ytPopupWindow.closed) {
+    ytPopupWindow.close();
+  }
+  const popupUrl = 'https://accounts.google.com/ServiceLogin?service=youtube&hl=zh-CN&continue=https://www.youtube.com/';
+  ytPopupWindow = window.open(popupUrl, 'ytLoginPopup', 'width=480,height=700,scrollbars=yes,resizable=yes');
+});
+
+// 自动提取按钮
+document.getElementById('btnAutoExtract').addEventListener('click', async () => {
+  document.getElementById('ytLoginStep1b').style.display = 'none';
+  document.getElementById('ytLoginStep2').style.display = 'block';
+  document.getElementById('ytLoginSuccess').style.display = 'none';
+  ytLoginResultMsg.textContent = '';
+
+  // 关闭弹出窗口
+  if (ytPopupWindow && !ytPopupWindow.closed) {
+    ytPopupWindow.close();
+  }
+  ytPopupWindow = null;
+
+  try {
+    const r = await fetch('/api/yt/login/auto');
+    const data = await r.json();
+    if (data.error || !data.ok) {
+      document.getElementById('ytLoginStep1').style.display = 'block';
+      document.getElementById('ytLoginStep2').style.display = 'none';
+      ytLoginResultMsg.textContent = data.message || data.error || '未找到 YouTube cookie，请确保已在浏览器中登录';
+      return;
+    }
+    document.getElementById('ytLoginStep2').style.display = 'none';
+    document.getElementById('ytLoginSuccess').style.display = 'block';
+    await checkYtLogin();
+    setTimeout(() => { ytLoginModal.style.display = 'none'; }, 1500);
+  } catch (e) {
+    document.getElementById('ytLoginStep1').style.display = 'block';
+    document.getElementById('ytLoginStep2').style.display = 'none';
+    ytLoginResultMsg.textContent = '网络错误: ' + e.message;
+  }
+});
+
+btnCloseYtLogin.addEventListener('click', () => {
+  ytLoginModal.style.display = 'none';
+});
+ytLoginModal.addEventListener('click', (e) => {
+  if (e.target === ytLoginModal) ytLoginModal.style.display = 'none';
+});
+
+checkYtLogin();
 
 // ── 获取视频信息 ──
 btnInfo.addEventListener('click', async () => {
@@ -537,7 +746,7 @@ btnInfo.addEventListener('click', async () => {
       btnLogin.style.display = '';
       document.querySelector('.dl-row label').textContent = '画质';
       document.getElementById('quality').style.display = '';
-    } else {
+    } else if (source === 'twitter') {
       tag.textContent = 'Twitter / X';
       tag.className = 'source-tag-twitter';
       btnLogin.style.display = 'none';
@@ -585,7 +794,7 @@ btnDownload.addEventListener('click', async () => {
   const statusText = document.getElementById('statusText');
   statusDiv.classList.add('show');
   statusBox.className = 'status-box running';
-  statusText.textContent = '⏳ 正在下载，请稍候...';
+  statusText.textContent = '正在下载，请稍候...';
 
   try {
     const resp = await fetch('/api/download', {
@@ -599,24 +808,24 @@ btnDownload.addEventListener('click', async () => {
     const poll = setInterval(async () => {
       const r = await fetch(`/api/task/${task_id}`);
       const task = await r.json();
-      if (task.message) statusText.textContent = '⏳ ' + task.message;
+      if (task.message) statusText.textContent = task.message;
       if (task.status === 'completed') {
         clearInterval(poll);
         statusBox.className = 'status-box completed';
-        statusText.innerHTML = '✅ 下载完成！<br><code>' + (task.result || '') + '</code>';
+        statusText.innerHTML = '下载完成！<br><code>' + (task.result || '') + '</code>';
         btnDownload.disabled = false;
         btnDownload.textContent = '下载';
       } else if (task.status === 'failed') {
         clearInterval(poll);
         statusBox.className = 'status-box failed';
-        statusText.innerHTML = '❌ 下载失败<br><code>' + (task.error || '未知错误') + '</code>';
+        statusText.innerHTML = '下载失败<br><code>' + (task.error || '未知错误') + '</code>';
         btnDownload.disabled = false;
         btnDownload.textContent = '下载';
       }
     }, 1000);
   } catch (e) {
     statusBox.className = 'status-box failed';
-    statusText.textContent = '❌ ' + e.message;
+    statusText.textContent = e.message;
     btnDownload.disabled = false;
     btnDownload.textContent = '下载';
   }
@@ -635,12 +844,9 @@ btnFormats.addEventListener('click', async () => {
       body: JSON.stringify({ url: currentUrl }) });
     const data = await resp.json();
     formatsOut.textContent = data.formats || data.error || '无数据';
-  } catch (e) {
-    formatsOut.textContent = '错误: ' + e.message;
-  }
+  } catch (e) { formatsOut.textContent = '错误: ' + e.message; }
 });
 
-// 回车触发查询
 urlInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') btnInfo.click();
 });

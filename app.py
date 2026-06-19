@@ -108,6 +108,65 @@ def api_login_logout():
     return jsonify({"ok": True, "message": "已退出登录"})
 
 
+# ─── YouTube 登录 ──────────────────────────────────────────────
+
+@app.route("/api/yt/login/status")
+def api_yt_login_status():
+    return jsonify(yt_dl.get_login_status())
+
+
+@app.route("/api/yt/login/browser", methods=["POST"])
+def api_yt_login_browser():
+    """从指定浏览器提取 YouTube cookies"""
+    data = request.get_json()
+    browser = (data.get("browser") or "").strip()
+    if not browser:
+        return jsonify({"error": "请选择浏览器"}), 400
+    try:
+        result = yt_dl.login_browser(browser)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/yt/login/auto")
+def api_yt_login_auto():
+    """自动遍历所有浏览器提取 cookie"""
+    try:
+        result = yt_dl.auto_extract_cookies()
+        if result["ok"]:
+            return jsonify(result)
+        return jsonify(result), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/yt/login/browsers")
+def api_yt_list_browsers():
+    """列出支持提取 cookie 的浏览器"""
+    try:
+        browsers = yt_dl.list_browsers()
+        return jsonify({"browsers": browsers})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/yt/login/logout")
+def api_yt_login_logout():
+    yt_dl.logout()
+    return jsonify({"ok": True, "message": "已退出 YouTube 登录"})
+
+
+@app.route("/api/yt/login/open", methods=["POST"])
+def api_yt_login_open():
+    """在用户默认浏览器中打开 YouTube 登录页面"""
+    try:
+        yt_dl.open_youtube_login()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 # ─── 获取视频信息（自动检测来源） ──────────────────────────────
 
 @app.route("/api/info", methods=["POST"])
