@@ -167,6 +167,51 @@ def api_yt_login_open():
         return jsonify({"error": str(e)}), 500
 
 
+# ─── Twitter/X 登录 API ──────────────────────────────
+
+@app.route("/api/x/login/status")
+def api_x_login_status():
+    return jsonify(x_dl.get_login_status())
+
+
+@app.route("/api/x/login/auto")
+def api_x_login_auto():
+    """自动遍历所有浏览器提取 Twitter cookie"""
+    try:
+        result = x_dl.auto_extract_cookies()
+        if result["ok"]:
+            return jsonify(result)
+        return jsonify(result), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/x/login/browsers")
+def api_x_list_browsers():
+    """列出支持提取 cookie 的浏览器"""
+    try:
+        browsers = x_dl.list_browsers()
+        return jsonify({"browsers": browsers})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/x/login/logout")
+def api_x_login_logout():
+    x_dl.logout()
+    return jsonify({"ok": True, "message": "已退出 Twitter 登录"})
+
+
+@app.route("/api/x/login/open", methods=["POST"])
+def api_x_login_open():
+    """在用户默认浏览器中打开 Twitter 登录页面"""
+    try:
+        x_dl.open_twitter_login()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 # ─── 获取视频信息（自动检测来源） ──────────────────────────────
 
 @app.route("/api/info", methods=["POST"])

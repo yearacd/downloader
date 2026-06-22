@@ -224,6 +224,11 @@
     <span id="ytLoginStatus" style="display:none;"></span>
     <button class="btn btn-outline" id="btnYtLogin" style="display:none;">登录</button>
   </div>
+  <div class="login-status-item">
+    <span class="login-status-label">Twitter/X:</span>
+    <span id="xLoginStatus" style="display:none;"></span>
+    <button class="btn btn-outline" id="btnXLogin" style="display:none;">登录</button>
+  </div>
 </div>
 
 <div class="container">
@@ -710,6 +715,97 @@ ytLoginModal.addEventListener('click', (e) => {
 });
 
 checkYtLogin();
+
+// ── Twitter/X 登录 ──
+const btnXLogin = document.getElementById('btnXLogin');
+const xLoginStatus = document.getElementById('xLoginStatus');
+let xPopupWindow = null;
+
+async function checkXLogin() {
+  try {
+    const r = await fetch('/api/x/login/status');
+    const data = await r.json();
+    console.log('Twitter login status:', data);
+    if (data.logged_in) {
+      xLoginStatus.innerHTML = '<span class="status-badge logged-in">已登录</span>';
+      xLoginStatus.style.display = 'inline';
+      btnXLogin.textContent = '退出';
+      // 移除点击事件
+      xLoginStatus.onclick = null;
+      console.log('Twitter logged in, UI updated');
+    } else {
+      xLoginStatus.innerHTML = '<span class="status-badge not-logged">未登录</span>';
+      xLoginStatus.style.display = 'inline';
+      btnXLogin.textContent = '登录';
+      // 添加点击事件，点击未登录徽章打开登录窗口
+      xLoginStatus.onclick = () => openXLoginWindow();
+      console.log('Twitter not logged in');
+    }
+  } catch (e) {
+    console.error('Error checking Twitter login:', e);
+  }
+}
+
+// 打开 Twitter 登录窗口
+function openXLoginWindow() {
+  // 提示用户
+  const shouldOpen = confirm(
+    'Twitter/X 登录说明：\n\n' +
+    '由于浏览器的安全限制，弹出窗口中的登录可能无法被检测到。\n\n' +
+    '推荐做法：\n' +
+    '1. 在您的主浏览器中打开 x.com 并登录\n' +
+    '2. 然后点击“确定”提取 Cookie\n\n' +
+    '是否现在打开 Twitter 登录页面？'
+  );
+  
+  if (shouldOpen) {
+    // 打开新标签页而不是弹出窗口
+    window.open('https://x.com/i/flow/login', '_blank');
+    
+    // 等待用户登录
+    setTimeout(() => {
+      if (confirm('已在浏览器中完成 Twitter 登录？\n点击“确定”提取 Cookie')) {
+        extractXCookies();
+      }
+    }, 5000);
+  }
+}
+
+// 提取 Twitter cookies
+async function extractXCookies() {
+  // 关闭弹出窗口
+  if (xPopupWindow && !xPopupWindow.closed) {
+    xPopupWindow.close();
+  }
+  xPopupWindow = null;
+  
+  try {
+    const r = await fetch('/api/x/login/auto');
+    const data = await r.json();
+    console.log('Twitter login result:', data);
+    if (data.ok) {
+      alert('✓ Twitter 登录成功！');
+      await checkXLogin();
+      console.log('After checkXLogin, status updated');
+    } else {
+      alert(data.message || '未找到 Twitter cookie，请确保已在浏览器中登录');
+    }
+  } catch (e) {
+    console.error('Error extracting cookies:', e);
+    alert('网络错误: ' + e.message);
+  }
+}
+
+btnXLogin.addEventListener('click', () => {
+  if (btnXLogin.textContent === '退出') {
+    fetch('/api/x/login/logout').then(() => checkXLogin());
+    return;
+  }
+  // 点击登录按钮打开登录窗口
+  openXLoginWindow();
+});
+
+checkXLogin();
 
 // ── 获取视频信息 ──
 btnInfo.addEventListener('click', async () => {
